@@ -6,11 +6,6 @@ from rest_framework.urlpatterns import format_suffix_patterns
 
 app_name = 'movies'
 
-# router = routers.DefaultRouter()
-
-# router.register('', views.MovieList)
-# # router.register('comments/', views.CommentList)
-
 urlpatterns = [
     path('', views.MovieList.as_view()),
     path('comments/', views.CommentList.as_view()),
