@@ -3,6 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
+from movies.forms import CommentForm, PartialMovieForm, PartialCommentForm
 from django.db.models import Count
 import requests
 
@@ -17,77 +18,42 @@ class MovieList(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        if len(request.data.get('title', '')) < 1:
-            return Response(
-                'title needs to be filled in',
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        else:
-            new_movie = Movie(title=request.data.get('title'))
-            omdb_request = new_movie.download_omdb_data()
-            if omdb_request == 200:
-                new_movie.save()
+        new_movie_form = PartialMovieForm({**request.data}, instance=Movie())
+        if new_movie_form.is_valid():
+            if new_movie_form.instance.download_omdb_data() == 200:
+                new_movie = new_movie_form.save()
                 return Response(MovieSerializer(new_movie).data)
             else:
-                return Response(omdb_request, status=status.HTTP_404_NOT_FOUND)
+                return Response('Could not connect to omdb')
+        else:
+            return Response('Could not save the movie', status=status.HTTP_400_BAD_REQUEST)
 
 class CommentList(APIView):
 
     def get(self, request, format=None):
-        if request.data.get('movie_id'):
-            try:
-                movie_id = int(request.data.get('movie_id'))
-            except ValueError:
-                return Response(
-                    'Invalid id provided',
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            else:
+        movie_id = request.GET.get('movie')
+        if movie_id:
+            form = PartialCommentForm({'movie': movie_id}, instance=Comment())
+            if form.is_valid():
+                print(request.GET.get('movie'))
                 comments = Comment.objects.filter(movie_id=movie_id)
-                if len(comments):
-                    serializer = CommentSerializer(comments, many=True)
-                    return Response(serializer.data)
-                else:
-                    return Response(
-                        "No comments for this movie",
-                        status=status.HTTP_404_NOT_FOUND
-                    )
+                serializer = CommentSerializer(comments, many=True)
+                return Response(serializer.data)
+            else:
+                return Response(form.errors)
         else:
             comments = Comment.objects.all()
             serializer = CommentSerializer(comments, many=True)
             return Response(serializer.data)
 
+
     def post(self, request):
-        comment_body = request.data.get('comment_body')
-        movie_id_str = request.data.get('movie_id')
-        if not movie_id_str:
-            return Response(
-                'movie_id must be provided',
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        try:
-            movie_id = int(movie_id_str)
-        except ValueError:
-            return Response(
-                'Invalid id provided',
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        try:
-            movie = Movie.objects.get(id=movie_id)
-        except ValueError:
-            return Response(
-                'Movie with this ID was not found',
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        if not comment_body:
-            return Response(
-                'comment body can\'t be blank',
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        else:
-            new_comment = Comment(body=comment_body, movie=movie)
-            new_comment.save()
+        new_comment_form = CommentForm({**request.data}, instance=Comment())
+        if new_comment_form.is_valid():
+            new_comment = new_comment_form.save()
             return Response(CommentSerializer(new_comment).data)
+        else:
+            return Response(new_comment_form.errors)
 
 class TopMoviesList(APIView):
 
