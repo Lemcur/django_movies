@@ -1,0 +1,7 @@
+django-heroku
+gunicorn
+crython
+django
+djangorestframework
+django-extensions
+requests
