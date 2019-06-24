@@ -7,7 +7,7 @@ from rest_framework.urlpatterns import format_suffix_patterns
 app_name = 'movies'
 
 urlpatterns = [
-    path('', views.MovieList.as_view()),
+    path('movies/', views.MovieList.as_view()),
     path('comments/', views.CommentList.as_view()),
     path('top/', views.TopMoviesList.as_view()),
 ]

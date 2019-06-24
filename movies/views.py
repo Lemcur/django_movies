@@ -18,7 +18,7 @@ class MovieList(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        new_movie_form = PartialMovieForm({**request.data}, instance=Movie())
+        new_movie_form = PartialMovieForm(request.data, instance=Movie())
         if new_movie_form.is_valid():
             if new_movie_form.instance.download_omdb_data() == 200:
                 new_movie = new_movie_form.save()
@@ -48,7 +48,7 @@ class CommentList(APIView):
 
 
     def post(self, request):
-        new_comment_form = CommentForm({**request.data}, instance=Comment())
+        new_comment_form = CommentForm(request.data, instance=Comment())
         if new_comment_form.is_valid():
             new_comment = new_comment_form.save()
             return Response(CommentSerializer(new_comment).data)
