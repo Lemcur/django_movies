@@ -2,6 +2,9 @@ from django.db import models
 from django.core.validators import MinLengthValidator
 
 import requests, datetime
+from django_movies.settings import ENV
+
+APIKEY = ENV('OMDB_API_KEY')
 
 class Movie(models.Model):
     title = models.CharField(max_length=200, validators=[MinLengthValidator(2)])
@@ -12,14 +15,14 @@ class Movie(models.Model):
         return self.title
 
     def download_omdb_data(self):
-        omdb_response = requests.get(f'http://www.omdbapi.com/?apikey=41c8fb8c&t={self.title}')
+        omdb_response = requests.get(f'http://www.omdbapi.com/?apikey={APIKEY}&t={self.title}')
         omdb_json = omdb_response.json()
         if omdb_json['Response'] == 'True':
             self.genre = omdb_json['Genre']
-            self.released = datetime.datetime.strptime(omdb_json['Released'], '%d %b %Y').date()
-            return 200
-        else:
-            return omdb_json
+            if omdb_json['Released'] != 'N/A':
+                self.released = datetime.datetime.strptime(omdb_json['Released'], '%d %b %Y').date()
+        return omdb_response
+
 
 
 class Comment(models.Model):

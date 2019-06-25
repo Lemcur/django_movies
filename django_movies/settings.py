@@ -11,21 +11,29 @@ https://docs.djangoproject.com/en/2.1/ref/settings/
 """
 import os
 import django_heroku
+import environ
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
+ENV = environ.Env(
+    SECRET_KEY=(str, ''),
+    DJANGO_ENV=(str, 'development'),
+    OMDB_API_KEY=(str, ''),
+)
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'kcmb+ey&hvf7*+c*h&tqv07q0@^4!#se))ofx$z&$7@o1do2!u'
+SECRET_KEY = ENV('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+if ENV('DJANGO_ENV') == 'development':
+    DEBUG = True
+    ALLOWED_HOSTS = []
+else:
+    ALLOWED_HOSTS = ['https://django-movies.herokuapp.com']
 
-ALLOWED_HOSTS = []
 
 
 # Application definition
@@ -77,10 +85,6 @@ WSGI_APPLICATION = 'django_movies.wsgi.application'
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases
 
 DATABASES = {
-    'not_default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    },
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'movies_db',
@@ -133,4 +137,6 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10
 }
-django_heroku.settings(locals())
+
+if ENV('DJANGO_ENV') == 'production':
+    django_heroku.settings(locals())

@@ -7,6 +7,19 @@ from movies.views import MovieList
 from unittest.mock import MagicMock
 from movies.forms import CommentForm
 
+class MockResponse():
+    def __init__(self, **kwargs):
+        self.json_data = kwargs.get('json_data')
+        self.status = kwargs.get('status')
+
+    def json(self):
+        return self.json_data
+
+    @property
+    def status_code(self):
+        return self.status
+
+
 class MovieListTest(TestCase):
     def test_get_returns_movie_list(self):
         Movie(title='Glass', released=datetime.date(2000, 1, 1), genre="Drama").save()
@@ -22,22 +35,31 @@ class MovieListTest(TestCase):
     def test_post_with_no_title_returns_bad_request(self):
         response = self.client.post('/movies/', {})
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), 'Could not save the movie')
+        self.assertEqual(response.json(), {'title': ['This field is required.']})
 
     def test_post_with_title_creates_new_movie(self):
-        Movie.download_omdb_data = MagicMock(return_value=200)
+        Movie.download_omdb_data = MagicMock(
+            return_value=MockResponse(
+                json_data={"Response": "True"},
+                status=200
+            )
+        )
 
-        old_movie_count = Movie.objects.all().count()
+        old_movie_count = Movie.objects.count()
         self.client.post('/movies/', {'title': 'Glass'})
-        new_movie_count = Movie.objects.all().count()
+        new_movie_count = Movie.objects.count()
         self.assertEqual(old_movie_count + 1, new_movie_count)
 
     def test_post_with_wrong_title_does_not_create_movie(self):
-        Movie.download_omdb_data = MagicMock(return_value=404)
-
-        old_movie_count = Movie.objects.all().count()
+        Movie.download_omdb_data = MagicMock(
+            return_value=MockResponse(
+                json_data={"Response": "False"},
+                status=404
+            )
+        )
+        old_movie_count = Movie.objects.count()
         self.client.post('/movies/', {'title': 'asdasdasdadsadadssadasda'})
-        new_movie_count = Movie.objects.all().count()
+        new_movie_count = Movie.objects.count()
         self.assertEqual(old_movie_count, new_movie_count)
 
 class CommentListTest(TestCase):

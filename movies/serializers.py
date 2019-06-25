@@ -1,7 +1,20 @@
 from .models import Movie, Comment
 from rest_framework import serializers
+from django.forms import Field, CharField, ValidationError
+import datetime
+
+class DateFromStringField(Field):
+    def to_python(self, value):
+        try:
+            date = datetime.datetime.strptime(value, '%d %b %Y').date()
+        except Exception:
+            raise ValidationError("Wrong format, accepted format is 01 Jan 2000")
+        return date
 
 class MovieSerializer(serializers.HyperlinkedModelSerializer):
+    released = DateFromStringField()
+    title = CharField(required=False)
+
     class Meta:
         model = Movie
         fields = ('title', 'released', 'genre')
