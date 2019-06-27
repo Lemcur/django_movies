@@ -5,7 +5,6 @@ from movies.models import Movie, Comment
 from rest_framework.test import APIRequestFactory
 from movies.views import MovieList
 from unittest.mock import MagicMock
-from movies.forms import CommentForm
 
 class MockResponse():
     def __init__(self, **kwargs):
@@ -102,9 +101,9 @@ class CommentListTest(TestCase):
     def test_post_with_valid_data_creates_a_comment(self):
         movie = Movie(title='Glass', released=datetime.date(2000, 1, 1), genre="Drama")
         movie.save()
-        old_comments_count = Comment.objects.all().count()
+        old_comments_count = Comment.objects.count()
         self.client.post('/comments/', {'body': 'commented', 'movie': movie.pk})
-        new_comments_count = Comment.objects.all().count()
+        new_comments_count = Comment.objects.count()
         self.assertEqual(old_comments_count + 1, new_comments_count)
 
     def test_post_with_invalid_data_returns_errors(self):

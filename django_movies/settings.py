@@ -20,6 +20,8 @@ ENV = environ.Env(
     SECRET_KEY=(str, ''),
     DJANGO_ENV=(str, 'development'),
     OMDB_API_KEY=(str, ''),
+    POSTGRES_DB_LOGIN=(str, ''),
+    POSTGRES_DB_PASSWORD=(str, ''),
 )
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.1/howto/deployment/checklist/
@@ -88,8 +90,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'movies_db',
-        'USER': 'localhost',
-        'PASSWORD': 'password',
+        'USER': ENV('POSTGRES_DB_LOGIN'),
+        'PASSWORD': ENV('POSTGRES_DB_PASSWORD'),
         'HOST': '',
         'PORT': '',
     }
@@ -135,7 +137,10 @@ STATIC_URL = '/static/'
 
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10
+    'PAGE_SIZE': 10,
+    'DEFAULT_FILTER_BACKENDS': (
+        'django_filters.rest_framework.DjangoFilterBackend',
+    ),
 }
 
 if ENV('DJANGO_ENV') == 'production':

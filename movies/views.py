@@ -1,37 +1,48 @@
-from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.mixins import ListModelMixin, RetrieveModelMixin, CreateModelMixin
+from rest_framework.viewsets import GenericViewSet
 
-from movies.forms import MovieForm, CommentForm, PartialMovieForm, PartialCommentForm
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
-import requests
+
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import OrderingFilter
 
 from .models import Movie, Comment
 from .serializers import MovieSerializer, CommentSerializer, TopMoviesSerializer
+from movies.api.filters import MovieFilter, CommentFilter
 
-class MovieList(APIView):
+class MovieList(ListModelMixin, CreateModelMixin, GenericViewSet):
+    serializer_class = MovieSerializer
+    filter_backends = (DjangoFilterBackend,OrderingFilter,)
+    filterset_class = MovieFilter
+    queryset = Movie.objects.all()
 
-    def get(self, request, format=None):
-        movies = Movie.objects.all()
-        serializer = MovieSerializer(movies, many=True)
-        return Response(serializer.data)
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset
 
-    def post(self, request):
-        new_movie_form = PartialMovieForm(request.data, instance=Movie())
-        if new_movie_form.is_valid():
-            omdb_response = new_movie_form.instance.download_omdb_data()
-            if omdb_response.status_code == 200:
-                if omdb_response.json().get('Response') == 'True':
-                    new_movie = new_movie_form.save()
-                    return Response(MovieSerializer(new_movie).data)
-                else:
-                    return Response(omdb_response.json(), status=status.HTTP_404_NOT_FOUND)
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        omdb_response = serializer.download_omdb_data()
+        if omdb_response.status_code == 200:
+            if omdb_response.json().get('Response') == 'True':
+                serializer.save()
+                _response = {
+                    'Movie': serializer.data,
+                    'omdb_response': omdb_response.json()
+                }
+                _status = status.HTTP_200_OK
             else:
-                return Response(omdb_response.json(), status=omdb_response.status_code)
+                _response = omdb_response.json()
+                _status = status.HTTP_404_NOT_FOUND
         else:
-            return Response(new_movie_form.errors, status=status.HTTP_400_BAD_REQUEST)
+            _response = omdb_response.json()
+            _status = omdb_response.status_code
+        return Response(_response, status=_status)
 
 class MovieDetailView(APIView):
     def get(self, request, pk):
@@ -47,36 +58,46 @@ class MovieDetailView(APIView):
         else:
             return Response(movie_form.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class CommentList(ListModelMixin, CreateModelMixin, GenericViewSet):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = CommentFilter
 
-class CommentList(APIView):
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset
 
-    def get(self, request, format=None):
-        movie_id = request.GET.get('movie')
-        if movie_id:
-            form = PartialCommentForm({'movie': movie_id}, instance=Comment())
-            if form.is_valid():
-                comments = Comment.objects.filter(movie_id=movie_id)
-                serializer = CommentSerializer(comments, many=True)
-                return Response(serializer.data)
-            else:
-                return Response(form.errors)
-        else:
-            comments = Comment.objects.all()
-            serializer = CommentSerializer(comments, many=True)
-            return Response(serializer.data)
+# class CommentList(APIView):
+
+#     def get(self, request, format=None):
+#         movie_id = request.GET.get('movie')
+#         if movie_id:
+#             form = PartialCommentForm({'movie': movie_id}, instance=Comment())
+#             if form.is_valid():
+#                 comments = Comment.objects.filter(movie_id=movie_id)
+#                 serializer = CommentSerializer(comments, many=True)
+#                 return Response(serializer.data)
+#             else:
+#                 return Response(form.errors)
+#         else:
+#             comments = Comment.objects.all()
+#             serializer = CommentSerializer(comments, many=True)
+#             return Response(serializer.data)
 
 
-    def post(self, request):
-        new_comment_form = CommentForm(request.data, instance=Comment())
-        if new_comment_form.is_valid():
-            new_comment = new_comment_form.save()
-            return Response(CommentSerializer(new_comment).data)
-        else:
-            return Response(new_comment_form.errors)
+#     def post(self, request):
+#         new_comment_form = CommentForm(request.data, instance=Comment())
+#         if new_comment_form.is_valid():
+#             new_comment = new_comment_form.save()
+#             return Response(CommentSerializer(new_comment).data)
+#         else:
+#             return Response(new_comment_form.errors)
 
-class TopMoviesList(APIView):
+class TopMoviesList(ListModelMixin, GenericViewSet):
+    serializer_class = TopMoviesSerializer
+    queryset = Movie.objects.annotate(count=Count('comment')).order_by('-count')
 
-    def get(self, request):
-        top_movies = Movie.objects.annotate(count=Count('comment')).order_by('-count')
-        serializer = TopMoviesSerializer(top_movies, many=True)
-        return Response(serializer.data)
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset
